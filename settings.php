@@ -49,6 +49,18 @@ if ($hassiteconfig) {
     ));
 
     $settings->add(new admin_setting_configselect(
+        'local_securevideolibrary/compressionprofile',
+        get_string('compressionprofile', 'local_securevideolibrary'),
+        get_string('compressionprofile_desc', 'local_securevideolibrary'),
+        'balanced',
+        [
+            'datasaver' => get_string('profile_datasaver', 'local_securevideolibrary'),
+            'balanced'  => get_string('profile_balanced', 'local_securevideolibrary'),
+            'high'      => get_string('profile_high', 'local_securevideolibrary'),
+        ]
+    ));
+
+    $settings->add(new admin_setting_configselect(
         'local_securevideolibrary/defaultbitrateprofile',
         get_string('defaultbitrateprofile', 'local_securevideolibrary'),
         get_string('defaultbitrateprofile_desc', 'local_securevideolibrary'),

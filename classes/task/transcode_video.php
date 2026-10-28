@@ -123,13 +123,18 @@ class transcode_video extends adhoc_task {
         $success = false;
         $outputlog = '';
 
+        $compressionprofile = property_exists($media, 'compressionprofile') && !empty($media->compressionprofile)
+            ? $media->compressionprofile
+            : (get_config('local_securevideolibrary', 'compressionprofile') ?: 'balanced');
+
         if ($media->bitrateprofile === 'multi') {
             [$success, $outputlog] = $this->transcode_multi(
                 $ffmpeg,
                 $tempfilepath,
                 $mediadir,
                 $keyinfofile,
-                $segmentduration
+                $segmentduration,
+                $compressionprofile
             );
 
             // Fallback to single if multi fails (e.g. video dimension smaller than ladder).
@@ -140,7 +145,8 @@ class transcode_video extends adhoc_task {
                     $tempfilepath,
                     $mediadir,
                     $keyinfofile,
-                    $segmentduration
+                    $segmentduration,
+                    $compressionprofile
                 );
             }
         } else {
@@ -149,7 +155,8 @@ class transcode_video extends adhoc_task {
                 $tempfilepath,
                 $mediadir,
                 $keyinfofile,
-                $segmentduration
+                $segmentduration,
+                $compressionprofile
             );
         }
 
@@ -193,6 +200,7 @@ class transcode_video extends adhoc_task {
      * @param string $mediadir Target media directory.
      * @param string $keyinfo Key info file path.
      * @param int $segmentduration Duration per segment.
+     * @param string $compressionprofile Compression profile (datasaver, balanced, high).
      * @return array [bool success, string output]
      */
     protected function transcode_single(
@@ -200,16 +208,39 @@ class transcode_video extends adhoc_task {
         string $input,
         string $mediadir,
         string $keyinfo,
-        int $segmentduration
+        int $segmentduration,
+        string $compressionprofile = 'balanced'
     ): array {
         $playlistpath = $mediadir . '/playlist.m3u8';
         $segmentpattern = $mediadir . '/seg_%04d.ts';
 
+        // Select resolution cap, CRF, and speech-optimized audio settings.
+        $scalefilter = "scale='min(iw,1280)':-2";
+        $crf = 26;
+        $audiobitrate = '64k';
+        $audiochannels = 1;
+
+        if ($compressionprofile === 'datasaver') {
+            $scalefilter = "scale='min(iw,854)':-2";
+            $crf = 28;
+            $audiobitrate = '48k';
+            $audiochannels = 1;
+        } else if ($compressionprofile === 'high') {
+            $scalefilter = "scale='min(iw,1920)':-2";
+            $crf = 22;
+            $audiobitrate = '128k';
+            $audiochannels = 2;
+        }
+
         $cmd = sprintf(
-            '%s -y -i %s -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 128k -ac 2 ' .
+            '%s -y -i %s -vf %s -c:v libx264 -preset fast -crf %d -c:a aac -b:a %s -ac %d ' .
             '-hls_time %d -hls_playlist_type vod -hls_key_info_file %s -hls_segment_filename %s %s 2>&1',
             escapeshellcmd($ffmpeg),
             escapeshellarg($input),
+            escapeshellarg($scalefilter),
+            $crf,
+            $audiobitrate,
+            $audiochannels,
             $segmentduration,
             escapeshellarg($keyinfo),
             escapeshellarg($segmentpattern),
@@ -224,13 +255,14 @@ class transcode_video extends adhoc_task {
     }
 
     /**
-     * Run adaptive multi-bitrate HLS transcode (360p, 720p, 1080p).
+     * Run adaptive multi-bitrate HLS transcode (360p, 480p, 720p).
      *
      * @param string $ffmpeg Path to ffmpeg.
      * @param string $input Source file path.
      * @param string $mediadir Target media directory.
      * @param string $keyinfo Key info file path.
      * @param int $segmentduration Duration per segment.
+     * @param string $compressionprofile Compression profile.
      * @return array [bool success, string output]
      */
     protected function transcode_multi(
@@ -238,21 +270,24 @@ class transcode_video extends adhoc_task {
         string $input,
         string $mediadir,
         string $keyinfo,
-        int $segmentduration
+        int $segmentduration,
+        string $compressionprofile = 'balanced'
     ): array {
         $playlistpath = $mediadir . '/playlist.m3u8';
         $segmentpattern = $mediadir . '/seg_%v_%04d.ts';
         $variantpattern = $mediadir . '/variant_%v.m3u8';
 
+        // Lightweight educational ABR ladder (360p, 480p, 720p) optimized for slow internet.
         $cmd = sprintf(
             '%s -y -i %s ' .
-            '-filter_complex "[v:0]split=3[v1][v2][v3];[v1]scale=w=-2:h=360[v1out];[v2]scale=w=-2:h=720[v2out];[v3]scale=w=-2:h=1080[v3out]" ' .
-            '-map "[v1out]" -c:v:0 libx264 -preset fast -b:v:0 800k -maxrate:v:0 856k -bufsize:v:0 1200k ' .
-            '-map "[v2out]" -c:v:1 libx264 -preset fast -b:v:1 2500k -maxrate:v:1 2675k -bufsize:v:1 3750k ' .
-            '-map "[v3out]" -c:v:2 libx264 -preset fast -b:v:2 4500k -maxrate:v:2 4815k -bufsize:v:2 6750k ' .
-            '-map a:0 -c:a:0 aac -b:a:0 96k -ac 2 ' .
-            '-map a:0 -c:a:1 aac -b:a:1 128k -ac 2 ' .
-            '-map a:0 -c:a:2 aac -b:a:2 192k -ac 2 ' .
+            '-filter_complex "[v:0]split=3[v1][v2][v3];[v1]scale=w=-2:h=360[v1out];' .
+            '[v2]scale=w=-2:h=480[v2out];[v3]scale=w=-2:h=720[v3out]" ' .
+            '-map "[v1out]" -c:v:0 libx264 -preset fast -b:v:0 240k -maxrate:v:0 260k -bufsize:v:0 400k ' .
+            '-map "[v2out]" -c:v:1 libx264 -preset fast -b:v:1 450k -maxrate:v:1 480k -bufsize:v:1 700k ' .
+            '-map "[v3out]" -c:v:2 libx264 -preset fast -b:v:2 900k -maxrate:v:2 960k -bufsize:v:2 1400k ' .
+            '-map a:0 -c:a:0 aac -b:a:0 48k -ac 1 ' .
+            '-map a:0 -c:a:1 aac -b:a:1 64k -ac 1 ' .
+            '-map a:0 -c:a:2 aac -b:a:2 64k -ac 1 ' .
             '-f hls -hls_time %d -hls_playlist_type vod -hls_key_info_file %s ' .
             '-hls_segment_filename %s -master_pl_name playlist.m3u8 ' .
             '-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2" %s 2>&1',

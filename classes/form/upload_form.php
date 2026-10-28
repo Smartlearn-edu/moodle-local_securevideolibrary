@@ -71,6 +71,17 @@ class upload_form extends moodleform {
         $mform->addHelpButton('visibility', 'visibility', 'local_securevideolibrary');
         $mform->setDefault('visibility', $courseid > 1 ? media::VISIBILITY_COURSE : media::VISIBILITY_PRIVATE);
 
+        // Compression & Bandwidth Profile.
+        $defaultcompression = get_config('local_securevideolibrary', 'compressionprofile') ?: 'balanced';
+        $compressionoptions = [
+            'datasaver' => get_string('profile_datasaver', 'local_securevideolibrary'),
+            'balanced'  => get_string('profile_balanced', 'local_securevideolibrary'),
+            'high'      => get_string('profile_high', 'local_securevideolibrary'),
+        ];
+        $mform->addElement('select', 'compressionprofile', get_string('compressionprofile', 'local_securevideolibrary'), $compressionoptions);
+        $mform->addHelpButton('compressionprofile', 'compressionprofile', 'local_securevideolibrary');
+        $mform->setDefault('compressionprofile', $defaultcompression);
+
         // Bitrate Profile.
         $defaultprofile = get_config('local_securevideolibrary', 'defaultbitrateprofile') ?: 'single';
         $bitrateoptions = [

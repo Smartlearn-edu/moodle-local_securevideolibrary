@@ -16,6 +16,7 @@
         <FIELD NAME="contextid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Context ID"/>
         <FIELD NAME="visibility" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="private" SEQUENCE="false" COMMENT="Visibility scope: private, course, sitewide"/>
         <FIELD NAME="bitrateprofile" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="single" SEQUENCE="false" COMMENT="single or multi"/>
+        <FIELD NAME="compressionprofile" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="balanced" SEQUENCE="false" COMMENT="datasaver, balanced, high"/>
         <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="queued" SEQUENCE="false" COMMENT="Status: queued, processing, ready, failed"/>
         <FIELD NAME="errormessage" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="ffmpeg error output if failed"/>
         <FIELD NAME="encryptionkey" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false" COMMENT="Hex-encoded 16-byte AES-128 encryption key"/>

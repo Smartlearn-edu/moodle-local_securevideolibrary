@@ -104,8 +104,9 @@ if ($canupload) {
             $media->uploaderid     = (int)$USER->id;
             $media->courseid       = $courseid;
             $media->contextid      = $context->id;
-            $media->visibility     = $data->visibility;
-            $media->bitrateprofile = $data->bitrateprofile;
+            $media->visibility         = $data->visibility;
+            $media->bitrateprofile     = $data->bitrateprofile;
+            $media->compressionprofile = $data->compressionprofile ?? 'balanced';
             $media->status         = LOCAL_SECUREVIDEOLIBRARY_STATUS_QUEUED;
             $media->timecreated    = time();
             $media->timemodified   = time();
