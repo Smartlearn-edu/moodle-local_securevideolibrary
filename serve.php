@@ -61,6 +61,19 @@ if ($ext === 'm3u8') {
         die('Could not read playlist file.');
     }
 
+    // Inject ephemeral one-time token into the #EXT-X-KEY URI to prevent downloader extensions.
+    $token = \local_securevideolibrary\token_manager::generate_key_token($mediaid);
+    $keyurl = (new moodle_url('/local/securevideolibrary/key.php', [
+        'mediaid' => $mediaid,
+        'token'   => $token,
+    ]))->out(false);
+
+    $content = preg_replace(
+        '/#EXT-X-KEY:METHOD=AES-128,URI="[^"]+",IV=(0x[a-fA-F0-9]+)/',
+        '#EXT-X-KEY:METHOD=AES-128,URI="' . $keyurl . '",IV=$1',
+        $content
+    );
+
     // Rewrite lines pointing to .ts segments or variant .m3u8 playlists.
     $rewritten = preg_replace_callback(
         '/^(?!#)([a-zA-Z0-9_\-]+\.(?:ts|m3u8))$/m',

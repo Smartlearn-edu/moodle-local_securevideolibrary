@@ -129,8 +129,23 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
                 hlsInstance = new Hls({
                     debug: false,
                     enableWorker: true,
-                    xhrSetup: function(xhr) {
+                    xhrSetup: function(xhr, url) {
                         xhr.withCredentials = true; // Crucial for Moodle session cookies.
+                        if (url && url.indexOf('key.php') !== -1) {
+                            try {
+                                const urlObj = new URL(url, window.location.href);
+                                const token = urlObj.searchParams.get('token');
+                                if (token) {
+                                    xhr.setRequestHeader('X-Moodle-Player-Token', token);
+                                }
+                            } catch (e) {
+                                const match = /[?&]token=([a-fA-F0-9]+)/.exec(url);
+                                if (match) {
+                                    xhr.setRequestHeader('X-Moodle-Player-Token', match[1]);
+                                }
+                            }
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                        }
                     }
                 });
 

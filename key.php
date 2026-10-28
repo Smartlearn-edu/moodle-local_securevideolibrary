@@ -30,6 +30,16 @@ require_once(__DIR__ . '/lib.php');
 require_login();
 
 $mediaid = required_param('mediaid', PARAM_INT);
+$token   = required_param('token', PARAM_ALPHANUM);
+
+$headertoken = $_SERVER['HTTP_X_MOODLE_PLAYER_TOKEN'] ?? '';
+
+// Verify single-use token and player handshake.
+if (!\local_securevideolibrary\token_manager::verify_and_consume_token($mediaid, $token, $headertoken)) {
+    header('HTTP/1.1 403 Forbidden');
+    header('Content-Type: text/plain');
+    die('Forbidden: Missing, expired, or invalid playback authorization token.');
+}
 
 $media = $DB->get_record('local_securevideolibrary_media', ['id' => $mediaid]);
 if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
