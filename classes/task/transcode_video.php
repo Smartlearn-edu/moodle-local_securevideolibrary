@@ -214,31 +214,40 @@ class transcode_video extends adhoc_task {
         $playlistpath = $mediadir . '/playlist.m3u8';
         $segmentpattern = $mediadir . '/seg_%04d.ts';
 
-        // Select resolution cap, CRF, and speech-optimized audio settings.
+        // Select resolution cap, CRF, strict VBV maxrate ceiling, and speech-optimized audio settings.
         $scalefilter = "scale='min(iw,1280)':-2";
         $crf = 26;
+        $maxrate = '700k';
+        $bufsize = '1400k';
         $audiobitrate = '64k';
         $audiochannels = 1;
 
         if ($compressionprofile === 'datasaver') {
             $scalefilter = "scale='min(iw,854)':-2";
             $crf = 28;
+            $maxrate = '350k';
+            $bufsize = '700k';
             $audiobitrate = '48k';
             $audiochannels = 1;
         } else if ($compressionprofile === 'high') {
             $scalefilter = "scale='min(iw,1920)':-2";
             $crf = 22;
+            $maxrate = '1800k';
+            $bufsize = '3600k';
             $audiobitrate = '128k';
             $audiochannels = 2;
         }
 
         $cmd = sprintf(
-            '%s -y -i %s -vf %s -c:v libx264 -preset fast -crf %d -c:a aac -b:a %s -ac %d ' .
+            '%s -y -i %s -vf %s -c:v libx264 -preset fast -crf %d -maxrate %s -bufsize %s ' .
+            '-c:a aac -b:a %s -ac %d ' .
             '-hls_time %d -hls_playlist_type vod -hls_key_info_file %s -hls_segment_filename %s %s 2>&1',
             escapeshellcmd($ffmpeg),
             escapeshellarg($input),
             escapeshellarg($scalefilter),
             $crf,
+            $maxrate,
+            $bufsize,
             $audiobitrate,
             $audiochannels,
             $segmentduration,
