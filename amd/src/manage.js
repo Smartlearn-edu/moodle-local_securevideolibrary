@@ -65,7 +65,9 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             return;
         }
 
-        modalTitle.textContent = title;
+        if (title && modalTitle) {
+            modalTitle.textContent = title;
+        }
 
         // Cleanup existing player instance.
         if (hlsInstance) {
@@ -76,38 +78,46 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
         videoEl.removeAttribute('src');
         videoEl.load();
 
-        loadHls().then(function(Hls) {
-            if (Hls.isSupported()) {
-                hlsInstance = new Hls({
-                    xhrSetup: function(xhr) {
-                        xhr.withCredentials = true; // Crucial for Moodle session cookie delivery.
-                    }
-                });
-
-                hlsInstance.loadSource(playlistUrl);
-                hlsInstance.attachMedia(videoEl);
-                hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                    videoEl.play().catch(function() {
-                        // Browser autoplay policy prevented auto play.
+        if (playlistUrl) {
+            loadHls().then(function(Hls) {
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        xhrSetup: function(xhr) {
+                            xhr.withCredentials = true; // Crucial for Moodle session cookie delivery.
+                        }
                     });
-                });
-            } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-                // Native Safari HLS.
-                videoEl.src = playlistUrl;
-                videoEl.play().catch(function() {
-                    // Browser autoplay policy.
-                });
-            }
-        }).catch(function(err) {
-            Notification.exception(err);
-        });
 
-        // Trigger modal display (supports both Bootstrap 4 and 5).
-        if (window.bootstrap && window.bootstrap.Modal) {
-            const bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-            bsModal.show();
-        } else if (window.jQuery && typeof window.jQuery(modalEl).modal === 'function') {
-            window.jQuery(modalEl).modal('show');
+                    hlsInstance.loadSource(playlistUrl);
+                    hlsInstance.attachMedia(videoEl);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                        videoEl.play().catch(function() {
+                            // Autoplay policy prevented playback.
+                        });
+                    });
+                } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Native Safari HLS.
+                    videoEl.src = playlistUrl;
+                    videoEl.play().catch(function() {
+                        // Browser autoplay policy.
+                    });
+                }
+            }).catch(function(err) {
+                Notification.exception(err);
+            });
+        }
+
+        // Ensure modal display even if data attributes failed.
+        if (!modalEl.classList.contains('show')) {
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                bsModal.show();
+            } else if (window.jQuery && typeof window.jQuery(modalEl).modal === 'function') {
+                window.jQuery(modalEl).modal('show');
+            } else {
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                document.body.classList.add('modal-open');
+            }
         }
     }
 
@@ -129,12 +139,20 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             }
             videoEl.removeAttribute('src');
             videoEl.load();
+            modalEl.style.display = '';
+            modalEl.classList.remove('show');
+            document.body.classList.remove('modal-open');
         };
 
         modalEl.addEventListener('hidden.bs.modal', stopPlayback);
         if (window.jQuery) {
             window.jQuery(modalEl).on('hidden.bs.modal', stopPlayback);
         }
+
+        const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], [data-dismiss="modal"], .btn-close');
+        closeButtons.forEach(function(btn) {
+            btn.addEventListener('click', stopPlayback);
+        });
     }
 
     /**
@@ -170,18 +188,30 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
     }
 
     /**
-     * Setup preview click handlers.
+     * Setup preview click and modal show handlers.
      */
     function setupPreviewHandlers() {
+        const modalEl = document.getElementById('videoPreviewModal');
+        if (modalEl) {
+            modalEl.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                if (!button) {
+                    return;
+                }
+                const title = button.getAttribute('data-title') || '';
+                const playlistUrl = button.getAttribute('data-playlisturl') || '';
+                openPreview(title, playlistUrl);
+            });
+        }
+
         document.addEventListener('click', function(e) {
             const previewBtn = e.target.closest('.action-preview-video');
             if (!previewBtn) {
                 return;
             }
 
-            e.preventDefault();
-            const title = previewBtn.dataset.title;
-            const playlistUrl = previewBtn.dataset.playlisturl;
+            const title = previewBtn.getAttribute('data-title') || '';
+            const playlistUrl = previewBtn.getAttribute('data-playlisturl') || '';
             openPreview(title, playlistUrl);
         });
     }
@@ -197,7 +227,6 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
         }
 
         pollInterval = setInterval(function() {
-            // Reload page automatically to refresh statuses.
             window.location.reload();
         }, 6000);
     }
