@@ -251,13 +251,10 @@ $templatedata = [
     'search'           => $search,
     'hasvideos'        => !empty($videos),
     'videos'           => $videos,
-    'hasprocessing'    => $hasprocessing,
+    'hasprocessing'    => $hasprocessing ? 'true' : 'false',
     'pageurl'          => $pageurl->out(false),
     'sesskey'          => sesskey(),
 ];
-
-// Load AMD JS for auto-polling if videos are transcoding and for preview modal.
-$PAGE->requires->js_call_amd('local_securevideolibrary/manage', 'init', [$hasprocessing]);
 
 echo $OUTPUT->header();
 echo $OUTPUT->render_from_template('local_securevideolibrary/manage', $templatedata);

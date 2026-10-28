@@ -25,9 +25,35 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
 
     let hlsInstance = null;
     let pollInterval = null;
+    let currentPlaylistUrl = null;
 
     /**
-     * Dynamically load HLS.js library if not already present.
+     * Fallback to CDN if local bundle is not present.
+     *
+     * @param {Function} resolve
+     * @param {Function} reject
+     */
+    function loadCdnFallback(resolve, reject) {
+        if (window.Hls) {
+            resolve(window.Hls);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js';
+        script.onload = function() {
+            console.log('[SecureVideo] HLS.js loaded via CDN.');
+            resolve(window.Hls);
+        };
+        script.onerror = function(err) {
+            console.error('[SecureVideo] CDN script load failed:', err);
+            reject(err);
+        };
+        document.head.appendChild(script);
+    }
+
+    /**
+     * Load HLS.js library locally via AMD or fallback to CDN.
      *
      * @return {Promise<window.Hls>}
      */
@@ -38,15 +64,18 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
                 return;
             }
 
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js';
-            script.onload = function() {
-                resolve(window.Hls);
-            };
-            script.onerror = function(err) {
-                reject(err);
-            };
-            document.head.appendChild(script);
+            // Attempt loading local bundled AMD module first.
+            require(['local_securevideolibrary/hls'], function(HlsModule) {
+                const Hls = HlsModule || window.Hls;
+                if (Hls) {
+                    console.log('[SecureVideo] HLS.js loaded via local AMD bundle.');
+                    resolve(Hls);
+                    return;
+                }
+                loadCdnFallback(resolve, reject);
+            }, function() {
+                loadCdnFallback(resolve, reject);
+            });
         });
     }
 
@@ -57,11 +86,14 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
      * @param {string} playlistUrl Playlist M3U8 URL.
      */
     function openPreview(title, playlistUrl) {
+        console.log('[SecureVideo] openPreview called:', {title: title, playlistUrl: playlistUrl});
+
         const modalEl = document.getElementById('videoPreviewModal');
         const modalTitle = document.getElementById('videoPreviewModalLabel');
         const videoEl = document.getElementById('previewPlayerElement');
 
         if (!modalEl || !videoEl) {
+            console.error('[SecureVideo] videoPreviewModal or previewPlayerElement not found in DOM.');
             return;
         }
 
@@ -69,7 +101,19 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             modalTitle.textContent = title;
         }
 
-        // Cleanup existing player instance.
+        if (!playlistUrl) {
+            console.error('[SecureVideo] Empty playlist URL supplied to openPreview.');
+            return;
+        }
+
+        // Prevent duplicate re-initialization if already active for this URL.
+        if (currentPlaylistUrl === playlistUrl && hlsInstance) {
+            console.log('[SecureVideo] Video already active for URL:', playlistUrl);
+            return;
+        }
+        currentPlaylistUrl = playlistUrl;
+
+        // Reset player element.
         if (hlsInstance) {
             hlsInstance.destroy();
             hlsInstance = null;
@@ -78,35 +122,63 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
         videoEl.removeAttribute('src');
         videoEl.load();
 
-        if (playlistUrl) {
-            loadHls().then(function(Hls) {
-                if (Hls.isSupported()) {
-                    hlsInstance = new Hls({
-                        xhrSetup: function(xhr) {
-                            xhr.withCredentials = true; // Crucial for Moodle session cookie delivery.
+        loadHls().then(function(Hls) {
+            console.log('[SecureVideo] Initializing player with Hls support:', Hls.isSupported());
+
+            if (Hls.isSupported()) {
+                hlsInstance = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    xhrSetup: function(xhr) {
+                        xhr.withCredentials = true; // Crucial for Moodle session cookies.
+                    }
+                });
+
+                hlsInstance.loadSource(playlistUrl);
+                hlsInstance.attachMedia(videoEl);
+
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+                    console.log('[SecureVideo] HLS Manifest parsed. Quality levels:', data.levels.length);
+                    videoEl.play().catch(function(err) {
+                        console.warn('[SecureVideo] Browser autoplay prevented, waiting for user click:', err);
+                    });
+                });
+
+                hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('[SecureVideo] HLS Error encountered:', data.type, data.details, data);
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn('[SecureVideo] Network error recovery attempt...');
+                                hlsInstance.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.warn('[SecureVideo] Media error recovery attempt...');
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                console.error('[SecureVideo] Fatal unrecoverable HLS error.');
+                                hlsInstance.destroy();
+                                break;
                         }
-                    });
+                    }
+                });
+            } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native Safari HLS.
+                console.log('[SecureVideo] Using native Safari HLS player.');
+                videoEl.src = playlistUrl;
+                videoEl.play().catch(function(err) {
+                    console.warn('[SecureVideo] Safari autoplay prevented:', err);
+                });
+            } else {
+                console.error('[SecureVideo] Neither HLS.js nor native HLS supported.');
+            }
+        }).catch(function(err) {
+            console.error('[SecureVideo] Failed to load HLS:', err);
+            Notification.exception(err);
+        });
 
-                    hlsInstance.loadSource(playlistUrl);
-                    hlsInstance.attachMedia(videoEl);
-                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                        videoEl.play().catch(function() {
-                            // Autoplay policy prevented playback.
-                        });
-                    });
-                } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Native Safari HLS.
-                    videoEl.src = playlistUrl;
-                    videoEl.play().catch(function() {
-                        // Browser autoplay policy.
-                    });
-                }
-            }).catch(function(err) {
-                Notification.exception(err);
-            });
-        }
-
-        // Ensure modal display even if data attributes failed.
+        // Ensure modal display.
         if (!modalEl.classList.contains('show')) {
             if (window.bootstrap && window.bootstrap.Modal) {
                 const bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -132,6 +204,8 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
         }
 
         const stopPlayback = function() {
+            console.log('[SecureVideo] Stopping preview playback and destroying HLS instance.');
+            currentPlaylistUrl = null;
             videoEl.pause();
             if (hlsInstance) {
                 hlsInstance.destroy();
@@ -194,16 +268,17 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
         const modalEl = document.getElementById('videoPreviewModal');
         if (modalEl) {
             modalEl.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                if (!button) {
-                    return;
+                const target = event.relatedTarget;
+                const button = target ? target.closest('.action-preview-video') : null;
+                if (button) {
+                    const title = button.getAttribute('data-title') || '';
+                    const playlistUrl = button.getAttribute('data-playlisturl') || '';
+                    openPreview(title, playlistUrl);
                 }
-                const title = button.getAttribute('data-title') || '';
-                const playlistUrl = button.getAttribute('data-playlisturl') || '';
-                openPreview(title, playlistUrl);
             });
         }
 
+        // Global capture-phase listener to catch preview button clicks immediately.
         document.addEventListener('click', function(e) {
             const previewBtn = e.target.closest('.action-preview-video');
             if (!previewBtn) {
@@ -213,7 +288,7 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             const title = previewBtn.getAttribute('data-title') || '';
             const playlistUrl = previewBtn.getAttribute('data-playlisturl') || '';
             openPreview(title, playlistUrl);
-        });
+        }, true);
     }
 
     /**
@@ -238,6 +313,7 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
          * @param {boolean} hasProcessing
          */
         init: function(hasProcessing) {
+            console.log('[SecureVideo] Initialized with hasProcessing:', hasProcessing);
             setupModalCloseHandler();
             setupPreviewHandlers();
             setupDeleteHandlers();

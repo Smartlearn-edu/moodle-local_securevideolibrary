@@ -197,11 +197,17 @@
                 <h5 class="modal-title" id="videoPreviewModalLabel">{{#str}}preview, local_securevideolibrary{{/str}}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0 bg-black">
-                <div class="ratio ratio-16x9">
-                    <video id="previewPlayerElement" controls controlsList="nodownload" class="w-100 h-100"></video>
+            <div class="modal-body p-0" style="background-color: #000;">
+                <div class="ratio ratio-16x9" style="background-color: #000;">
+                    <video id="previewPlayerElement" controls controlsList="nodownload" class="w-100 h-100" style="background-color: #000;"></video>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{{#js}}
+require(['local_securevideolibrary/manage'], function(manage) {
+    manage.init({{hasprocessing}});
+});
+{{/js}}
