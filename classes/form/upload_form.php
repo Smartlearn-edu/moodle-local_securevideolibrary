@@ -17,6 +17,7 @@
 namespace local_securevideolibrary\form;
 
 use moodleform;
+use local_securevideolibrary\media;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -53,22 +54,22 @@ class upload_form extends moodleform {
 
         // Visibility / Sharing scope.
         $visibilityoptions = [
-            LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_PRIVATE => get_string('visibility_private', 'local_securevideolibrary'),
+            media::VISIBILITY_PRIVATE => get_string('visibility_private', 'local_securevideolibrary'),
         ];
 
         if ($courseid > 1) {
-            $visibilityoptions[LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_COURSE] =
+            $visibilityoptions[media::VISIBILITY_COURSE] =
                 get_string('visibility_course', 'local_securevideolibrary');
         }
 
         if (has_capability('local/securevideolibrary:managesitewide', \context_system::instance())) {
-            $visibilityoptions[LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_SITEWIDE] =
+            $visibilityoptions[media::VISIBILITY_SITEWIDE] =
                 get_string('visibility_sitewide', 'local_securevideolibrary');
         }
 
         $mform->addElement('select', 'visibility', get_string('visibility', 'local_securevideolibrary'), $visibilityoptions);
         $mform->addHelpButton('visibility', 'visibility', 'local_securevideolibrary');
-        $mform->setDefault('visibility', $courseid > 1 ? LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_COURSE : LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_PRIVATE);
+        $mform->setDefault('visibility', $courseid > 1 ? media::VISIBILITY_COURSE : media::VISIBILITY_PRIVATE);
 
         // Bitrate Profile.
         $defaultprofile = get_config('local_securevideolibrary', 'defaultbitrateprofile') ?: 'single';

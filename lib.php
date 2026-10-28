@@ -25,25 +25,25 @@
 defined('MOODLE_INTERNAL') || die();
 
 /** Status: In queue awaiting transcode worker */
-define('LOCAL_SECUREVIDEOLIBRARY_STATUS_QUEUED', 'queued');
+define('LOCAL_SECUREVIDEOLIBRARY_STATUS_QUEUED', \local_securevideolibrary\media::STATUS_QUEUED);
 
 /** Status: Transcode in progress */
-define('LOCAL_SECUREVIDEOLIBRARY_STATUS_PROCESSING', 'processing');
+define('LOCAL_SECUREVIDEOLIBRARY_STATUS_PROCESSING', \local_securevideolibrary\media::STATUS_PROCESSING);
 
 /** Status: Transcoding complete and HLS AES-128 stream ready */
-define('LOCAL_SECUREVIDEOLIBRARY_STATUS_READY', 'ready');
+define('LOCAL_SECUREVIDEOLIBRARY_STATUS_READY', \local_securevideolibrary\media::STATUS_READY);
 
 /** Status: Transcoding failed */
-define('LOCAL_SECUREVIDEOLIBRARY_STATUS_FAILED', 'failed');
+define('LOCAL_SECUREVIDEOLIBRARY_STATUS_FAILED', \local_securevideolibrary\media::STATUS_FAILED);
 
 /** Visibility: Only uploader */
-define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_PRIVATE', 'private');
+define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_PRIVATE', \local_securevideolibrary\media::VISIBILITY_PRIVATE);
 
 /** Visibility: Teachers in the course */
-define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_COURSE', 'course');
+define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_COURSE', \local_securevideolibrary\media::VISIBILITY_COURSE);
 
 /** Visibility: All teachers across site */
-define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_SITEWIDE', 'sitewide');
+define('LOCAL_SECUREVIDEOLIBRARY_VISIBILITY_SITEWIDE', \local_securevideolibrary\media::VISIBILITY_SITEWIDE);
 
 /**
  * Extends the course navigation to add the Secure Video Library link for teachers.

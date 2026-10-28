@@ -17,6 +17,7 @@
 namespace local_securevideolibrary\task;
 
 use core\task\adhoc_task;
+use local_securevideolibrary\media;
 use local_securevideolibrary\storage;
 
 /**
@@ -59,13 +60,13 @@ class transcode_video extends adhoc_task {
             return;
         }
 
-        if ($media->status === LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
+        if ($media->status === media::STATUS_READY) {
             mtrace("Media record #{$mediaid} is already marked ready.");
             return;
         }
 
         // Set status to processing.
-        $media->status = LOCAL_SECUREVIDEOLIBRARY_STATUS_PROCESSING;
+        $media->status = media::STATUS_PROCESSING;
         $media->timemodified = time();
         $DB->update_record('local_securevideolibrary_media', $media);
 
@@ -172,7 +173,7 @@ class transcode_video extends adhoc_task {
         $totalsize = storage::get_total_filesize($mediaid);
 
         // 9. Update DB record.
-        $media->status = LOCAL_SECUREVIDEOLIBRARY_STATUS_READY;
+        $media->status = media::STATUS_READY;
         $media->duration = $duration;
         $media->filesize = $totalsize;
         $media->encryptionkey = $hexkey;
@@ -326,7 +327,7 @@ class transcode_video extends adhoc_task {
     protected function mark_failed(\stdClass $media, string $error): void {
         global $DB;
         mtrace("Transcode failed for media #{$media->id}: {$error}");
-        $media->status = LOCAL_SECUREVIDEOLIBRARY_STATUS_FAILED;
+        $media->status = media::STATUS_FAILED;
         $media->errormessage = $error;
         $media->timemodified = time();
         $DB->update_record('local_securevideolibrary_media', $media);
