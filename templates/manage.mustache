@@ -1,0 +1,203 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_securevideolibrary/manage
+
+    Manage interface for the Secure Video Library.
+}}
+<div class="local-securevideolibrary-manage container-fluid px-0">
+
+    {{#hasprocessing}}
+    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+        <div class="spinner-border spinner-border-sm me-3" role="status">
+            <span class="sr-only">{{#str}}transcodingprogress, local_securevideolibrary{{/str}}</span>
+        </div>
+        <div>{{#str}}transcodingprogress, local_securevideolibrary{{/str}}</div>
+    </div>
+    {{/hasprocessing}}
+
+    {{! Top Toolbar }}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        {{! Navigation Tabs }}
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link {{#tab_my}}active{{/tab_my}}" href="{{myurl}}">
+                    {{#str}}myvideos, local_securevideolibrary{{/str}}
+                </a>
+            </li>
+            {{#hascourse}}
+            <li class="nav-item">
+                <a class="nav-link {{#tab_course}}active{{/tab_course}}" href="{{courseurl}}">
+                    {{#str}}coursevideos, local_securevideolibrary{{/str}}
+                </a>
+            </li>
+            {{/hascourse}}
+            <li class="nav-item">
+                <a class="nav-link {{#tab_all}}active{{/tab_all}}" href="{{allurl}}">
+                    {{#str}}allvideos, local_securevideolibrary{{/str}}
+                </a>
+            </li>
+        </ul>
+
+        {{! Search and Upload Button }}
+        <div class="d-flex align-items-center gap-2">
+            <form method="get" action="{{pageurl}}" class="d-flex align-items-center">
+                {{#courseid}}
+                <input type="hidden" name="courseid" value="{{courseid}}">
+                {{/courseid}}
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="{{#str}}searchvideos, local_securevideolibrary{{/str}}" value="{{search}}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+
+            {{#canupload}}
+            <button class="btn btn-primary" type="button" data-toggle="collapse" data-bs-toggle="collapse" data-target="#uploadCollapse" data-bs-target="#uploadCollapse" aria-expanded="false" aria-controls="uploadCollapse">
+                <i class="fa fa-cloud-upload" aria-hidden="true"></i> {{#str}}uploadvideo, local_securevideolibrary{{/str}}
+            </button>
+            {{/canupload}}
+        </div>
+    </div>
+
+    {{! Upload Form Collapsible Area }}
+    {{#canupload}}
+    <div class="collapse mb-4" id="uploadCollapse">
+        <div class="card card-body shadow-sm">
+            {{{uploadformhtml}}}
+        </div>
+    </div>
+    {{/canupload}}
+
+    {{! Video Grid }}
+    {{#hasvideos}}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {{#videos}}
+        <div class="col mb-4">
+            <div class="card h-100 shadow-sm border-0 position-relative">
+                {{! Thumbnail or State Placeholder }}
+                <div class="ratio ratio-16x9 bg-dark text-white rounded-top overflow-hidden d-flex align-items-center justify-content-center position-relative">
+                    {{#thumbnailurl}}
+                    <img src="{{thumbnailurl}}" alt="{{title}}" class="w-100 h-100 object-fit-cover" style="object-fit: cover;">
+                    {{/thumbnailurl}}
+                    {{^thumbnailurl}}
+                    <div class="d-flex flex-column align-items-center justify-content-center text-muted">
+                        {{#isprocessing}}
+                        <div class="spinner-border mb-2" role="status"></div>
+                        <span>{{#str}}status_processing, local_securevideolibrary{{/str}}</span>
+                        {{/isprocessing}}
+                        {{#isfailed}}
+                        <i class="fa fa-exclamation-triangle fa-2x text-danger mb-2" aria-hidden="true"></i>
+                        <span class="text-danger">{{#str}}status_failed, local_securevideolibrary{{/str}}</span>
+                        {{/isfailed}}
+                        {{^isprocessing}}
+                        {{^isfailed}}
+                        <i class="fa fa-film fa-2x mb-2" aria-hidden="true"></i>
+                        <span>{{#str}}status_queued, local_securevideolibrary{{/str}}</span>
+                        {{/isfailed}}
+                        {{/isprocessing}}
+                    </div>
+                    {{/thumbnailurl}}
+
+                    {{#isready}}
+                    <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2">
+                        {{durationformatted}}
+                    </span>
+                    {{/isready}}
+                </div>
+
+                {{! Card Body }}
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title text-truncate mb-0" title="{{title}}">{{title}}</h5>
+                        <span class="badge bg-{{statusclass}} text-white ms-2">{{statuslabel}}</span>
+                    </div>
+
+                    {{#description}}
+                    <p class="card-text text-muted small text-truncate-2 mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{description}}
+                    </p>
+                    {{/description}}
+
+                    {{#isfailed}}
+                    {{#errormessage}}
+                    <div class="alert alert-danger small py-1 px-2 mb-2">
+                        {{errormessage}}
+                    </div>
+                    {{/errormessage}}
+                    {{/isfailed}}
+
+                    <div class="mt-auto pt-2 border-top text-muted small d-flex justify-content-between">
+                        <span><i class="fa fa-user me-1" aria-hidden="true"></i>{{uploaderfullname}}</span>
+                        <span><i class="fa fa-hdd-o me-1" aria-hidden="true"></i>{{filesizeformatted}}</span>
+                    </div>
+                </div>
+
+                {{! Card Footer Actions }}
+                <div class="card-footer bg-transparent border-0 pt-0 pb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        {{#isready}}
+                        <button type="button" class="btn btn-sm btn-outline-primary action-preview-video"
+                                data-mediaid="{{id}}"
+                                data-title="{{title}}"
+                                data-playlisturl="{{playlisturl}}">
+                            <i class="fa fa-play" aria-hidden="true"></i> {{#str}}preview, local_securevideolibrary{{/str}}
+                        </button>
+                        {{/isready}}
+                    </div>
+
+                    <div>
+                        {{#candelete}}
+                        <a href="{{deleteurl}}" class="btn btn-sm btn-outline-danger action-delete-video"
+                           data-title="{{title}}">
+                            <i class="fa fa-trash" aria-hidden="true"></i> {{#str}}delete, local_securevideolibrary{{/str}}
+                        </a>
+                        {{/candelete}}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{/videos}}
+    </div>
+    {{/hasvideos}}
+
+    {{^hasvideos}}
+    <div class="text-center py-5">
+        <i class="fa fa-film fa-4x text-muted mb-3" aria-hidden="true"></i>
+        <h4 class="text-muted">{{#str}}novideos, local_securevideolibrary{{/str}}</h4>
+    </div>
+    {{/hasvideos}}
+
+</div>
+
+{{! Preview Modal }}
+<div class="modal fade" id="videoPreviewModal" tabindex="-1" aria-labelledby="videoPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="videoPreviewModalLabel">{{#str}}preview, local_securevideolibrary{{/str}}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 bg-black">
+                <div class="ratio ratio-16x9">
+                    <video id="previewPlayerElement" controls controlsList="nodownload" class="w-100 h-100"></video>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
