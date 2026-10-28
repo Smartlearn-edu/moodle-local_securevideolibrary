@@ -23,6 +23,39 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+/* Force vertical scrolling and standard scrollbars on manage page */
+html:has(body#page-local-securevideolibrary-manage),
+body#page-local-securevideolibrary-manage {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100% !important;
+}
+
+body#page-local-securevideolibrary-manage #page-wrapper {
+    height: auto !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: visible !important;
+}
+
+body#page-local-securevideolibrary-manage #page.drawers {
+    height: auto !important;
+    min-height: calc(100vh - 60px) !important;
+    overflow-y: visible !important;
+}
+
+body#page-local-securevideolibrary-manage #topofscroll,
+body#page-local-securevideolibrary-manage #page-content,
+body#page-local-securevideolibrary-manage #region-main-box,
+body#page-local-securevideolibrary-manage #region-main,
+body#page-local-securevideolibrary-manage .local-securevideolibrary-manage {
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+}
+
 .local-securevideolibrary-manage .card {
     transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }

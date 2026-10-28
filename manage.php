@@ -46,6 +46,7 @@ require_capability('local/securevideolibrary:view', $context);
 
 $PAGE->set_url($pageurl);
 $PAGE->set_context($context);
+$PAGE->set_pagelayout($courseid > 1 ? 'incourse' : 'standard');
 $PAGE->set_title(get_string('managevideos', 'local_securevideolibrary'));
 $PAGE->set_heading(get_string('pluginname', 'local_securevideolibrary'));
 

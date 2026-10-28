@@ -231,6 +231,12 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             modalEl.style.display = '';
             modalEl.classList.remove('show');
             document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
         };
 
         modalEl.addEventListener('hidden.bs.modal', stopPlayback);
