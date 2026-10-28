@@ -119,7 +119,8 @@ class get_videos extends external_api {
         $countsql = "SELECT COUNT(m.id) FROM {local_securevideolibrary_media} m {$where}";
         $totalcount = $DB->count_records_sql($countsql, $sqlparams);
 
-        $sql = "SELECT m.*, u.firstname, u.lastname
+        $userfields = \core_user\fields::for_name()->get_sql('u');
+        $sql = "SELECT m.* {$userfields->selects}
                   FROM {local_securevideolibrary_media} m
                   JOIN {user} u ON u.id = m.uploaderid
                   {$where}
