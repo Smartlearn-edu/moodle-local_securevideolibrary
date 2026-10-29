@@ -115,7 +115,23 @@ function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid
         }
     }
 
-    // Check if the user is a student/learner accessing through an active mod_securevideoplayer course module.
+    // Check if the user is a student/learner accessing through an active mod_securevideo course module.
+    if ($DB->get_manager()->table_exists('securevideo')) {
+        $sql = "SELECT cm.id
+                  FROM {course_modules} cm
+                  JOIN {modules} m ON m.id = cm.module AND m.name = :modname
+                  JOIN {securevideo} p ON p.id = cm.instance
+                 WHERE p.mediaid = :mediaid";
+
+        $instances = $DB->get_records_sql($sql, ['modname' => 'securevideo', 'mediaid' => $media->id]);
+        foreach ($instances as $inst) {
+            $modcontext = context_module::instance($inst->id, IGNORE_MISSING);
+            if ($modcontext && has_capability('mod/securevideo:view', $modcontext, $userid)) {
+                return true;
+            }
+        }
+    }
+
     if ($DB->get_manager()->table_exists('securevideoplayer')) {
         $sql = "SELECT cm.id
                   FROM {course_modules} cm
