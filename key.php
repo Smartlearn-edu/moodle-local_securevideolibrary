@@ -31,6 +31,7 @@ require_login();
 
 $mediaid = required_param('mediaid', PARAM_INT);
 $token   = required_param('token', PARAM_ALPHANUM);
+$cmid    = optional_param('cmid', 0, PARAM_INT);
 
 $headertoken = $_SERVER['HTTP_X_MOODLE_PLAYER_TOKEN'] ?? '';
 
@@ -48,7 +49,7 @@ if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
 }
 
 // Enforce access permission.
-if (!local_securevideolibrary_can_access_media($media)) {
+if (!local_securevideolibrary_can_access_media($media, null, $cmid)) {
     header('HTTP/1.1 403 Forbidden');
     die('Forbidden: You do not have permission to access the decryption key for this video.');
 }

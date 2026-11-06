@@ -31,6 +31,7 @@ require_login();
 
 $mediaid  = required_param('mediaid', PARAM_INT);
 $filename = required_param('file', PARAM_FILE);
+$cmid     = optional_param('cmid', 0, PARAM_INT);
 
 $media = $DB->get_record('local_securevideolibrary_media', ['id' => $mediaid]);
 if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
@@ -39,7 +40,7 @@ if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
 }
 
 // Enforce capability and access rules.
-if (!local_securevideolibrary_can_access_media($media)) {
+if (!local_securevideolibrary_can_access_media($media, null, $cmid)) {
     header('HTTP/1.1 403 Forbidden');
     die('Forbidden: You do not have permission to access this media.');
 }
@@ -63,10 +64,14 @@ if ($ext === 'm3u8') {
 
     // Inject ephemeral one-time token into the #EXT-X-KEY URI to prevent downloader extensions.
     $token = \local_securevideolibrary\token_manager::generate_key_token($mediaid);
-    $keyurl = (new moodle_url('/local/securevideolibrary/key.php', [
+    $keyparams = [
         'mediaid' => $mediaid,
         'token'   => $token,
-    ]))->out(false);
+    ];
+    if ($cmid > 0) {
+        $keyparams['cmid'] = $cmid;
+    }
+    $keyurl = (new moodle_url('/local/securevideolibrary/key.php', $keyparams))->out(false);
 
     $content = preg_replace(
         '/#EXT-X-KEY:METHOD=AES-128,URI="[^"]+",IV=(0x[a-fA-F0-9]+)/',
@@ -77,11 +82,15 @@ if ($ext === 'm3u8') {
     // Rewrite lines pointing to .ts segments or variant .m3u8 playlists.
     $rewritten = preg_replace_callback(
         '/^(?!#)([a-zA-Z0-9_\-]+\.(?:ts|m3u8))$/m',
-        function ($matches) use ($mediaid) {
-            return (new moodle_url('/local/securevideolibrary/serve.php', [
+        function ($matches) use ($mediaid, $cmid) {
+            $params = [
                 'mediaid' => $mediaid,
                 'file'    => $matches[1],
-            ]))->out(false);
+            ];
+            if ($cmid > 0) {
+                $params['cmid'] = $cmid;
+            }
+            return (new moodle_url('/local/securevideolibrary/serve.php', $params))->out(false);
         },
         $content
     );
@@ -119,6 +128,14 @@ if ($ext === 'jpg' || $ext === 'jpeg') {
 
 if ($ext === 'png') {
     header('Content-Type: image/png');
+    header('Content-Length: ' . filesize($filepath));
+    header('Cache-Control: private, max-age=86400');
+    readfile($filepath);
+    exit;
+}
+
+if ($ext === 'vtt') {
+    header('Content-Type: text/vtt; charset=utf-8');
     header('Content-Length: ' . filesize($filepath));
     header('Cache-Control: private, max-age=86400');
     readfile($filepath);

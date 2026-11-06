@@ -76,9 +76,10 @@ function local_securevideolibrary_extend_navigation_course(
  *
  * @param stdClass $media Database row from local_securevideolibrary_media.
  * @param int|null $userid User ID to check (null for current logged-in user).
+ * @param int $cmid Optional course module ID for direct context check.
  * @return bool True if permitted, false otherwise.
  */
-function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid = null): bool {
+function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid = null, int $cmid = 0): bool {
     global $USER, $DB;
 
     if ($userid === null) {
@@ -115,6 +116,23 @@ function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid
         }
     }
 
+    // Direct check if cmid is provided.
+    if ($cmid > 0) {
+        $modcontext = context_module::instance($cmid, IGNORE_MISSING);
+        if ($modcontext) {
+            $cm = get_coursemodule_from_id('', $cmid, 0, false, IGNORE_MISSING);
+            if ($cm) {
+                $modname = $DB->get_field('modules', 'name', ['id' => $cm->module]);
+                if ($modname && in_array($modname, ['smartvideo', 'securevideo', 'securevideoplayer'])) {
+                    $cap = "mod/{$modname}:view";
+                    if (get_capability_info($cap) && has_capability($cap, $modcontext, $userid)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
     // Check if the user is a student/learner accessing through an active mod_smartvideo course module.
     if ($DB->get_manager()->table_exists('smartvideo')) {
         $sql = "SELECT cm.id
@@ -143,7 +161,7 @@ function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid
         $instances = $DB->get_records_sql($sql, ['modname' => 'securevideo', 'mediaid' => $media->id]);
         foreach ($instances as $inst) {
             $modcontext = context_module::instance($inst->id, IGNORE_MISSING);
-            if ($modcontext && has_capability('mod/securevideo:view', $modcontext, $userid)) {
+            if ($modcontext && get_capability_info('mod/securevideo:view') && has_capability('mod/securevideo:view', $modcontext, $userid)) {
                 return true;
             }
         }
@@ -159,7 +177,7 @@ function local_securevideolibrary_can_access_media(stdClass $media, ?int $userid
         $instances = $DB->get_records_sql($sql, ['modname' => 'securevideoplayer', 'mediaid' => $media->id]);
         foreach ($instances as $inst) {
             $modcontext = context_module::instance($inst->id, IGNORE_MISSING);
-            if ($modcontext && has_capability('mod/securevideoplayer:view', $modcontext, $userid)) {
+            if ($modcontext && get_capability_info('mod/securevideoplayer:view') && has_capability('mod/securevideoplayer:view', $modcontext, $userid)) {
                 return true;
             }
         }
