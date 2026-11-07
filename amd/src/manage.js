@@ -65,7 +65,7 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
             }
 
             // Attempt loading local bundled AMD module first.
-            require(['local_securevideolibrary/hls'], function(HlsModule) {
+            require(['local_securevideolibrary/hls-lazy'], function(HlsModule) {
                 const Hls = HlsModule || window.Hls;
                 if (Hls) {
                     console.log('[SecureVideo] HLS.js loaded via local AMD bundle.');
