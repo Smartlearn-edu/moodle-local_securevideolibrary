@@ -68,18 +68,30 @@
             </form>
 
             {{#canupload}}
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-bs-toggle="collapse" data-target="#uploadCollapse" data-bs-target="#uploadCollapse" aria-expanded="false" aria-controls="uploadCollapse">
+            <button class="btn btn-outline-primary" type="button" data-toggle="collapse" data-bs-toggle="collapse" data-target="#uploadCollapse" data-bs-target="#uploadCollapse" aria-expanded="false" aria-controls="uploadCollapse">
                 <i class="fa fa-cloud-upload" aria-hidden="true"></i> {{#str}}uploadvideo, local_securevideolibrary{{/str}}
+            </button>
+            <button class="btn btn-success" type="button" data-toggle="collapse" data-bs-toggle="collapse" data-target="#importCollapse" data-bs-target="#importCollapse" aria-expanded="false" aria-controls="importCollapse">
+                <i class="fa fa-file-archive-o" aria-hidden="true"></i> {{#str}}importpackage, local_securevideolibrary{{/str}}
             </button>
             {{/canupload}}
         </div>
     </div>
 
-    {{! Upload Form Collapsible Area }}
+    {{! Upload and Import Collapsible Areas }}
     {{#canupload}}
     <div class="collapse mb-4" id="uploadCollapse">
         <div class="card card-body shadow-sm">
             {{{uploadformhtml}}}
+        </div>
+    </div>
+    <div class="collapse mb-4" id="importCollapse">
+        <div class="card card-body shadow-sm border-success">
+            <div class="alert alert-success d-flex align-items-center mb-3">
+                <i class="fa fa-info-circle fa-2x me-3" aria-hidden="true"></i>
+                <div>{{#str}}importpackage_desc, local_securevideolibrary{{/str}}</div>
+            </div>
+            {{{importformhtml}}}
         </div>
     </div>
     {{/canupload}}

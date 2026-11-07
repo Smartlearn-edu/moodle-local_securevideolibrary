@@ -68,9 +68,10 @@ if ($deleteid > 0 && confirm_sesskey()) {
     redirect($pageurl, get_string('deletesuccess', 'local_securevideolibrary'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
-// Upload Form.
+// Upload and Import Forms.
 $canupload = has_capability('local/securevideolibrary:upload', $context);
 $uploadform = null;
+$importform = null;
 $showuploadmodal = false;
 
 if ($canupload) {
@@ -79,7 +80,12 @@ if ($canupload) {
         'context'  => $context,
     ]);
 
-    if ($uploadform->is_cancelled()) {
+    $importform = new \local_securevideolibrary\form\import_package_form($pageurl, [
+        'courseid' => $courseid,
+        'context'  => $context,
+    ]);
+
+    if ($uploadform->is_cancelled() || $importform->is_cancelled()) {
         redirect($pageurl);
     } else if ($data = $uploadform->get_data()) {
         $draftitemid = $data->videofile;
@@ -123,6 +129,37 @@ if ($canupload) {
             \core\task\manager::queue_adhoc_task($task);
 
             redirect($pageurl, get_string('uploadsuccess', 'local_securevideolibrary'), null, \core\output\notification::NOTIFY_SUCCESS);
+        }
+    } else if ($importdata = $importform->get_data()) {
+        $draftitemid = $importdata->packagefile;
+        $usercontext = context_user::instance($USER->id);
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id DESC', false);
+
+        if (empty($files)) {
+            \core\notification::error(get_string('err_uploadempty', 'local_securevideolibrary'));
+        } else {
+            $file = reset($files);
+            $tempdir = make_temp_directory('securevideo_import');
+            $temppath = $tempdir . '/' . uniqid('pkg_', true) . '_' . clean_filename($file->get_filename());
+            $file->copy_content_to($temppath);
+
+            try {
+                $mediaid = \local_securevideolibrary\package_importer::import_package($temppath, [
+                    'title'       => $importdata->title,
+                    'description' => $importdata->description,
+                    'visibility'  => $importdata->visibility,
+                    'courseid'    => $courseid,
+                    'contextid'   => $context->id,
+                    'uploaderid'  => $USER->id,
+                ]);
+
+                @unlink($temppath);
+                redirect($pageurl, get_string('importsuccess', 'local_securevideolibrary'), null, \core\output\notification::NOTIFY_SUCCESS);
+            } catch (\Exception $e) {
+                @unlink($temppath);
+                \core\notification::error($e->getMessage());
+            }
         }
     }
 }
@@ -243,6 +280,7 @@ $templatedata = [
     'courseid'         => $courseid,
     'canupload'        => $canupload,
     'uploadformhtml'   => $uploadform ? $uploadform->render() : '',
+    'importformhtml'   => $importform ? $importform->render() : '',
     'tab_my'           => ($tab === 'my'),
     'tab_course'       => ($tab === 'course'),
     'tab_all'          => ($tab === 'all'),
