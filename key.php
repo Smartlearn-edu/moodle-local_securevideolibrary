@@ -56,6 +56,10 @@ if (!\local_securevideolibrary\token_manager::verify_and_consume_token($mediaid,
     die('Forbidden: Missing, expired, or invalid playback authorization token.');
 }
 
+if (empty($mstoken)) {
+    \core\session\manager::write_close();
+}
+
 $media = $DB->get_record('local_securevideolibrary_media', ['id' => $mediaid]);
 if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
     send_header_404();

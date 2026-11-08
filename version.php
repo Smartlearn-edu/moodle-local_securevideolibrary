@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_securevideolibrary';
-$plugin->version   = 2026110804;
+$plugin->version   = 2026110805;
 $plugin->requires  = 2024100700; // Requires Moodle 4.5+ / 5.0+.
 $plugin->maturity  = MATURITY_ALPHA;
 $plugin->release   = 'v1.0.0';

@@ -80,6 +80,11 @@ if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
     die('Forbidden: You do not have permission to access this media.');
 }
 
+// Release session lock for non-playlist requests so segments stream concurrently without blocking.
+if (empty($mstoken) && $filename !== 'playlist.m3u8' && substr($filename, -5) !== '.m3u8') {
+    \core\session\manager::write_close();
+}
+
 // Retrieve sanitized filesystem path.
 $filepath = \local_securevideolibrary\storage::get_file_path($mediaid, $filename);
 if (!$filepath || !file_exists($filepath)) {
@@ -141,6 +146,9 @@ if ($ext === 'm3u8') {
     header('Cache-Control: private, no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
     header('Expires: 0');
+    if (empty($mstoken)) {
+        \core\session\manager::write_close();
+    }
     echo $rewritten;
     exit;
 }
