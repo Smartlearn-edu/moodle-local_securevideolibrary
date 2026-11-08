@@ -28,7 +28,6 @@ use ZipArchive;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class package_importer {
-
     /**
      * Import a pre-transcoded .zip package into the secure video library.
      *

@@ -31,7 +31,6 @@ require_once($CFG->libdir . '/formslib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class import_package_form extends moodleform {
-
     /**
      * Form definition.
      *
@@ -83,7 +82,13 @@ class import_package_form extends moodleform {
             'maxfiles'       => 1,
             'accepted_types' => ['.zip'],
         ];
-        $mform->addElement('filepicker', 'packagefile', get_string('packagefile', 'local_securevideolibrary'), null, $filepickeroptions);
+        $mform->addElement(
+            'filepicker',
+            'packagefile',
+            get_string('packagefile', 'local_securevideolibrary'),
+            null,
+            $filepickeroptions
+        );
         $mform->addHelpButton('packagefile', 'packagefile', 'local_securevideolibrary');
         $mform->addRule('packagefile', null, 'required', null, 'client');
 

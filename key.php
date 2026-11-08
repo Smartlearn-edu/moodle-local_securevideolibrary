@@ -22,21 +22,35 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define('NO_MOODLE_COOKIES', false); // Requires Moodle session cookies.
+$hasmstoken = !empty($_GET['mstoken']);
+define('NO_MOODLE_COOKIES', $hasmstoken);
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
-// Enforce authentication.
-require_login();
+\local_securevideolibrary\token_manager::handle_cors_and_preflight();
 
 $mediaid = required_param('mediaid', PARAM_INT);
 $token   = required_param('token', PARAM_ALPHANUM);
 $cmid    = optional_param('cmid', 0, PARAM_INT);
+$mstoken = optional_param('mstoken', '', PARAM_ALPHANUM);
+
+$userid = 0;
+if (!empty($mstoken)) {
+    $userid = \local_securevideolibrary\token_manager::verify_mobile_stream_token($mstoken, $mediaid, $cmid);
+    if ($userid <= 0) {
+        header('HTTP/1.1 403 Forbidden');
+        header('Content-Type: text/plain');
+        die('Forbidden: Invalid or expired mobile stream token.');
+    }
+} else {
+    require_login();
+    $userid = (int)$USER->id;
+}
 
 $headertoken = $_SERVER['HTTP_X_MOODLE_PLAYER_TOKEN'] ?? '';
 
 // Verify single-use token and player handshake.
-if (!\local_securevideolibrary\token_manager::verify_and_consume_token($mediaid, $token, $headertoken)) {
+if (!\local_securevideolibrary\token_manager::verify_and_consume_token($mediaid, $token, $headertoken, !empty($mstoken))) {
     header('HTTP/1.1 403 Forbidden');
     header('Content-Type: text/plain');
     die('Forbidden: Missing, expired, or invalid playback authorization token.');
@@ -49,7 +63,7 @@ if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
 }
 
 // Enforce access permission.
-if (!local_securevideolibrary_can_access_media($media, null, $cmid)) {
+if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
     header('HTTP/1.1 403 Forbidden');
     die('Forbidden: You do not have permission to access the decryption key for this video.');
 }
@@ -68,8 +82,7 @@ if ($rawkey === false || strlen($rawkey) !== 16) {
 // Output raw 16-byte binary key with strict no-cache headers.
 header('Content-Type: application/octet-stream');
 header('Content-Length: 16');
-header('Cache-Control: no-cache, no-store, must-revalidate, private');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
-header('Expires: 0');
 echo $rawkey;
 exit;

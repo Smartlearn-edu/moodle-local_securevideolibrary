@@ -28,32 +28,7 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
     let currentPlaylistUrl = null;
 
     /**
-     * Fallback to CDN if local bundle is not present.
-     *
-     * @param {Function} resolve
-     * @param {Function} reject
-     */
-    function loadCdnFallback(resolve, reject) {
-        if (window.Hls) {
-            resolve(window.Hls);
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js';
-        script.onload = function() {
-            console.log('[SecureVideo] HLS.js loaded via CDN.');
-            resolve(window.Hls);
-        };
-        script.onerror = function(err) {
-            console.error('[SecureVideo] CDN script load failed:', err);
-            reject(err);
-        };
-        document.head.appendChild(script);
-    }
-
-    /**
-     * Load HLS.js library locally via AMD or fallback to CDN.
+     * Load HLS.js library locally via AMD bundle.
      *
      * @return {Promise<window.Hls>}
      */
@@ -64,17 +39,16 @@ define(['core/notification', 'core/str'], function(Notification, Str) {
                 return;
             }
 
-            // Attempt loading local bundled AMD module first.
+            // Load local bundled AMD module.
             require(['local_securevideolibrary/hls-lazy'], function(HlsModule) {
                 const Hls = HlsModule || window.Hls;
                 if (Hls) {
-                    console.log('[SecureVideo] HLS.js loaded via local AMD bundle.');
                     resolve(Hls);
                     return;
                 }
-                loadCdnFallback(resolve, reject);
-            }, function() {
-                loadCdnFallback(resolve, reject);
+                reject(new Error('Local HLS.js module could not be initialized'));
+            }, function(err) {
+                reject(err || new Error('Failed to load local HLS.js bundle'));
             });
         });
     }

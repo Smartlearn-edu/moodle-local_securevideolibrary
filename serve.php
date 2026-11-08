@@ -22,16 +22,51 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define('NO_MOODLE_COOKIES', false); // Requires Moodle session cookies.
+$hasmstoken = !empty($_GET['mstoken']);
+define('NO_MOODLE_COOKIES', $hasmstoken);
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
-// Enforce authentication.
-require_login();
+\local_securevideolibrary\token_manager::handle_cors_and_preflight();
 
-$mediaid  = required_param('mediaid', PARAM_INT);
 $filename = required_param('file', PARAM_FILE);
+$mediaid  = optional_param('mediaid', 0, PARAM_INT);
 $cmid     = optional_param('cmid', 0, PARAM_INT);
+$mstoken  = optional_param('mstoken', '', PARAM_ALPHANUM);
+
+// 1. Direct serve of local bundled HLS.js for offline and mobile caching (zero external CDNs).
+if ($filename === 'hls.js') {
+    $hlspath = __DIR__ . '/amd/build/hls-lazy.min.js';
+    if (!file_exists($hlspath)) {
+        $hlspath = __DIR__ . '/amd/src/hls-lazy.js';
+    }
+    if (file_exists($hlspath)) {
+        header('Content-Type: application/javascript; charset=utf-8');
+        header('Content-Length: ' . filesize($hlspath));
+        header('Cache-Control: public, max-age=604800, immutable');
+        readfile($hlspath);
+        exit;
+    }
+    send_header_404();
+    die('HLS library bundle not found.');
+}
+
+if ($mediaid <= 0) {
+    send_header_404();
+    die('Invalid media ID.');
+}
+
+$userid = 0;
+if (!empty($mstoken)) {
+    $userid = \local_securevideolibrary\token_manager::verify_mobile_stream_token($mstoken, $mediaid, $cmid);
+    if ($userid <= 0) {
+        header('HTTP/1.1 403 Forbidden');
+        die('Forbidden: Invalid or expired mobile stream token.');
+    }
+} else {
+    require_login();
+    $userid = (int)$USER->id;
+}
 
 $media = $DB->get_record('local_securevideolibrary_media', ['id' => $mediaid]);
 if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
@@ -40,7 +75,7 @@ if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
 }
 
 // Enforce capability and access rules.
-if (!local_securevideolibrary_can_access_media($media, null, $cmid)) {
+if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
     header('HTTP/1.1 403 Forbidden');
     die('Forbidden: You do not have permission to access this media.');
 }
@@ -71,6 +106,9 @@ if ($ext === 'm3u8') {
     if ($cmid > 0) {
         $keyparams['cmid'] = $cmid;
     }
+    if (!empty($mstoken)) {
+        $keyparams['mstoken'] = $mstoken;
+    }
     $keyurl = (new moodle_url('/local/securevideolibrary/key.php', $keyparams))->out(false);
 
     $content = preg_replace(
@@ -82,13 +120,16 @@ if ($ext === 'm3u8') {
     // Rewrite lines pointing to .ts segments or variant .m3u8 playlists.
     $rewritten = preg_replace_callback(
         '/^(?!#)([a-zA-Z0-9_\-]+\.(?:ts|m3u8))$/m',
-        function ($matches) use ($mediaid, $cmid) {
+        function ($matches) use ($mediaid, $cmid, $mstoken) {
             $params = [
                 'mediaid' => $mediaid,
                 'file'    => $matches[1],
             ];
             if ($cmid > 0) {
                 $params['cmid'] = $cmid;
+            }
+            if (!empty($mstoken)) {
+                $params['mstoken'] = $mstoken;
             }
             return (new moodle_url('/local/securevideolibrary/serve.php', $params))->out(false);
         },
