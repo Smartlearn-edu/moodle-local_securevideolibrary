@@ -74,15 +74,13 @@ if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
     die('Media not found or not ready.');
 }
 
-// Enforce capability and access rules.
-if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
-    header('HTTP/1.1 403 Forbidden');
-    die('Forbidden: You do not have permission to access this media.');
-}
-
-// Release session lock for non-playlist requests so segments stream concurrently without blocking.
-if (empty($mstoken) && $filename !== 'playlist.m3u8' && substr($filename, -5) !== '.m3u8') {
-    \core\session\manager::write_close();
+// Enforce capability and access rules (for m3u8 or cookie session; verified mstoken already binds mediaid+cmid).
+$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+if (empty($mstoken) || $ext === 'm3u8') {
+    if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
+        header('HTTP/1.1 403 Forbidden');
+        die('Forbidden: You do not have permission to access this media.');
+    }
 }
 
 // Retrieve sanitized filesystem path.
@@ -91,8 +89,6 @@ if (!$filepath || !file_exists($filepath)) {
     send_header_404();
     die('Requested file does not exist.');
 }
-
-$ext = strtolower(pathinfo($filepath, PATHINFO_EXTENSION));
 
 // Playlist handling: rewrite relative paths to absolute serve.php URLs for reliable client playback.
 if ($ext === 'm3u8') {
@@ -146,11 +142,13 @@ if ($ext === 'm3u8') {
     header('Cache-Control: private, no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
     header('Expires: 0');
-    if (empty($mstoken)) {
-        \core\session\manager::write_close();
-    }
     echo $rewritten;
     exit;
+}
+
+// Release session lock before streaming binary segments/thumbnails in cookie mode.
+if (empty($mstoken)) {
+    \core\session\manager::write_close();
 }
 
 // Encrypted video segment handling (.ts).

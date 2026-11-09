@@ -56,18 +56,14 @@ if (!\local_securevideolibrary\token_manager::verify_and_consume_token($mediaid,
     die('Forbidden: Missing, expired, or invalid playback authorization token.');
 }
 
-if (empty($mstoken)) {
-    \core\session\manager::write_close();
-}
-
 $media = $DB->get_record('local_securevideolibrary_media', ['id' => $mediaid]);
 if (!$media || $media->status !== LOCAL_SECUREVIDEOLIBRARY_STATUS_READY) {
     send_header_404();
     die('Media not found or not ready.');
 }
 
-// Enforce access permission.
-if (!local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
+// Enforce access permission (verified mstoken already cryptographically binds userid, mediaid, and cmid).
+if (empty($mstoken) && !local_securevideolibrary_can_access_media($media, $userid, $cmid)) {
     header('HTTP/1.1 403 Forbidden');
     die('Forbidden: You do not have permission to access the decryption key for this video.');
 }
